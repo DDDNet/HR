@@ -1,0 +1,205 @@
+package klk59.hr.model;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import domainapp.basics.exceptions.ConstraintViolationException;
+import domainapp.basics.model.meta.AttrRef;
+import domainapp.basics.model.meta.DAssoc;
+import domainapp.basics.model.meta.DAttr;
+import domainapp.basics.model.meta.DClass;
+import domainapp.basics.model.meta.Select;
+import domainapp.basics.util.Tuple;
+import domainapp.basics.model.meta.DAssoc.AssocEndType;
+import domainapp.basics.model.meta.DAssoc.AssocType;
+import domainapp.basics.model.meta.DAssoc.Associate;
+import domainapp.basics.model.meta.DAttr.Type;
+import domainapp.basics.model.meta.DOpt;
+
+@DClass(schema="hr")
+public class Department {
+	@DAttr(name="id",id=true,auto=true,length=3,mutable=false,optional=false,type=Type.Integer)
+	private int id;
+	private static int idCounter;
+	
+	@DAttr(name="name",type=Type.String,length=20,optional=false)
+	private String name;
+	
+	@DAttr(name="employees",type=Type.Collection,serialisable=false,
+			optional=false, filter=@Select(clazz=Employee.class))
+	@DAssoc(ascName="department-has-employee",role="city",
+		      ascType=AssocType.One2Many,endType=AssocEndType.One,
+		      associate=@Associate(type=Employee.class,cardMin=1,cardMax=25))  
+	private List<Employee> employees;
+	
+	private int employeesCount;
+	
+	@DOpt(type=DOpt.Type.ObjectFormConstructor)
+	@DOpt(type=DOpt.Type.RequiredConstructor)
+	public Department(@AttrRef("name") String name) {
+	    this(null, name);
+	}
+	
+	// constructor to create objects from data source
+	  @DOpt(type=DOpt.Type.DataSourceConstructor)
+	  public Department(Integer id, String name) {
+	    this.id = nextID(id);
+	    this.name = name;
+	    
+	    employees = new ArrayList<>();
+	    employeesCount = 0;
+	  }
+
+	  public void setName(String name) {
+	    this.name = name;
+	  }
+
+	  @DOpt(type=DOpt.Type.LinkAdder)
+	  //only need to do this for reflexive association: @MemberRef(name="employees")  
+	  public boolean addEmployee(Employee e) {
+	    if (!this.employees.contains(e)) {
+	      employees.add(e);
+	    }
+	    
+	    // no other attributes changed
+	    return false; 
+	  }
+
+	  @DOpt(type=DOpt.Type.LinkAdderNew)
+	  public boolean addNewEmployee(Employee e) {
+	    employees.add(e);
+	    employeesCount++;
+	    
+	    // no other attributes changed
+	    return false; 
+	  }
+	  
+	  @DOpt(type=DOpt.Type.LinkAdder)
+	  public boolean addEmployee(List<Employee> employees) {
+	    for (Employee e : employees) {
+	      if (!this.employees.contains(e)) {
+	        this.employees.add(e);
+	      }
+	    }
+	    
+	    // no other attributes changed
+	    return false; 
+	  }
+
+	  @DOpt(type=DOpt.Type.LinkAdderNew)
+	  public boolean addNewEmployee(List<Employee> employees) {
+	    this.employees.addAll(employees);
+	    employeesCount += employees.size();
+
+	    // no other attributes changed
+	    return false; 
+	  }
+
+	  @DOpt(type=DOpt.Type.LinkRemover)
+	  //only need to do this for reflexive association: @MemberRef(name="employees")
+	  public boolean removeEmployee(Employee e) {
+	    boolean removed = employees.remove(e);
+	    
+	    if (removed) {
+	    	employeesCount--;
+	    }
+	    
+	    // no other attributes changed
+	    return false; 
+	  }
+	  
+	  public void setEmployees(List<Employee> employees) {
+	    this.employees = employees;
+	    
+	    employeesCount = employees.size();
+	  }
+	    
+	  /**
+	   * @effects 
+	   *  return <tt>employeesCount</tt>
+	   */
+	  @DOpt(type=DOpt.Type.LinkCountGetter)
+	  public Integer getEmployeesCount() {
+	    return employeesCount;
+	  }
+
+	  @DOpt(type=DOpt.Type.LinkCountSetter)
+	  public void setEmployeesCount(int count) {
+		  employeesCount = count;
+	  }
+	  
+	  public String getName() {
+	    return name;
+	  }
+	  
+	  public List<Employee> getEmployees() {
+	    return employees;
+	  }
+	  
+
+	  public int getId() {
+	    return id;
+	  }
+	  
+	  @Override
+	  public String toString() {
+	    return "Department("+getId()+","+getName()+")";
+	  }
+	  
+	  @Override
+	  public int hashCode() {
+	    final int prime = 31;
+	    int result = 1;
+	    result = prime * result + id;
+	    return result;
+	  }
+
+	  @Override
+	  public boolean equals(Object obj) {
+	    if (this == obj)
+	      return true;
+	    if (obj == null)
+	      return false;
+	    if (getClass() != obj.getClass())
+	      return false;
+	    Department other = (Department) obj;
+	    if (id != other.id)
+	      return false;
+	    return true;
+	  }
+
+	  private static int nextID(Integer currID) {
+	    if (currID == null) {
+	      idCounter++;
+	      return idCounter;
+	    } else {
+	      int num = currID.intValue();
+	      if (num > idCounter)
+	        idCounter = num;
+	      
+	      return currID;
+	    }
+	  }
+
+	  /**
+	   * @requires 
+	   *  minVal != null /\ maxVal != null
+	   * @effects 
+	   *  update the auto-generated value of attribute <tt>attrib</tt>, specified for <tt>derivingValue</tt>, using <tt>minVal, maxVal</tt>
+	   */
+	  @DOpt(type=DOpt.Type.AutoAttributeValueSynchroniser)
+	  public static void updateAutoGeneratedValue(
+	      DAttr attrib,
+	      Tuple derivingValue, 
+	      Object minVal, 
+	      Object maxVal) throws ConstraintViolationException {
+	    
+	    if (minVal != null && maxVal != null) {
+	      if (attrib.name().equals("id")) {
+	        int maxIdVal = (Integer) maxVal;
+	        if (maxIdVal > idCounter)  
+	          idCounter = maxIdVal;
+	      }
+	    }
+	  }
+}
